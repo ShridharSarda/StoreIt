@@ -10,37 +10,52 @@ export default function LoginPage() {
   const [userId, setUserId] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
 
+  // Step 1: Send OTP
   const handleSendOtp = async () => {
     try {
       const response = await account.createEmailToken(ID.unique(), email);
       setUserId(response.userId);
       setIsOtpSent(true);
-      alert('OTP sent to your email!');
+      alert('✅ OTP sent to your email!');
     } catch (error) {
       console.error('Send OTP Error:', error);
-      alert('Failed to send OTP');
+      alert('❌ Failed to send OTP');
     }
   };
 
-const handleVerifyOtp = async () => {
-  try {
- 
-    const session = await account.createSession(userId, otp);
-    console.log('✅ Session created:', session);
+  // Step 2: Verify OTP & create session
+  const handleVerifyOtp = async () => {
+    try {
+      // Remove old session if any
+      try {
+        await account.deleteSession('current');
+      } catch {
+        console.log('No active session found');
+      }
 
-    const user = await account.get();
-    console.log('✅ Logged in user:', user);
+      // Create session using OTP
+      const session = await account.createSession(userId, otp);
+      console.log('✅ Session created:', session);
 
-    alert('Login successful!');
-    window.location.href = '/dashboard';
-  } catch (error) {
-    console.error('❌ Verify OTP Error:', error);
-    alert('OTP verification failed. Please check the code.');
-  }
+      const user = await account.get();
+      console.log('✅ Logged in user:', user);
+
+      alert('🎉 Login successful!');
+      window.location.href = '/dashboard';
+    } catch (error) {
+      console.error('❌ Verify OTP Error:', error);
+      alert('OTP verification failed. Please check the code.');
+    }
+  };
+
+ const handleOtpChange = (value: string, index: number) => {
+  const otpArray = otp.padEnd(6, ' ').split('');
+  otpArray[index] = value;
+  setOtp(otpArray.join('').trim());
 };
 
 
-    return (
+  return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-700">Sign In</h2>
@@ -65,28 +80,26 @@ const handleVerifyOtp = async () => {
           </>
         ) : (
           <>
-    <label className="block text-sm font-medium text-gray-600">Enter OTP</label>
+            <label className="block text-sm font-medium text-gray-600">Enter OTP</label>
 
-    <div className="flex justify-between space-x-2">
-      {[...Array(6)].map((_, index) => (
-        <input
-          key={index}
-          type="text"
-          maxLength={1}
-          className="w-12 h-12 text-center text-lg border rounded focus:outline-none focus:ring-2 focus:ring-green-400"
-          onChange={(e) => {
-            const value = e.target.value.replace(/[^0-9]/g, ''); // only digits
-            if (!value) return;
-            const newOtp = otp.split('');
-            newOtp[index] = value;
-            setOtp(newOtp.join(''));
-            if (e.target.nextSibling instanceof HTMLInputElement) {
-              e.target.nextSibling.focus();
-            }
-          }}
-        />
-      ))}
-    </div>
+            <div className="flex justify-between space-x-2">
+              {[...Array(6)].map((_, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  maxLength={1}
+                  className="w-12 h-12 text-center text-lg border rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    if (!val) return;
+                    handleOtpChange(val, index);
+                    if (e.target.nextSibling instanceof HTMLInputElement) {
+                      e.target.nextSibling.focus();
+                    }
+                  }}
+                />
+              ))}
+            </div>
 
             <button
               onClick={handleVerifyOtp}

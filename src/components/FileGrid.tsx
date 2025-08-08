@@ -1,14 +1,13 @@
 // components/FileGrid.tsx
 "use client";
 
-import { storage } from "@/appwrite/config";
+import { useState } from "react";
+import { storage, ID } from "@/appwrite/config";
 
 const BUCKET_ID = "688876fc003b6222d452";
 
 export default function FileGrid({
   files,
-  openMenuId,
-  setOpenMenuId,
   setModalFile,
   fetchFiles,
 }: {
@@ -17,11 +16,12 @@ export default function FileGrid({
     name: string;
     $createdAt: string;
   }[];
-  openMenuId: string | null;
-  setOpenMenuId: (id: string | null) => void;
   setModalFile: (file: any) => void;
   fetchFiles: () => Promise<void>;
 }) {
+  // 👇 LOCAL menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {files.map((file) => (
@@ -61,9 +61,30 @@ export default function FileGrid({
                 <button
                   onClick={async () => {
                     const newName = prompt("Enter new file name:", file.name);
-                    if (newName && newName !== file.name) {
-                      alert("Rename logic not implemented.");
-                      // You can implement rename here if needed.
+                    if (newName && newName.trim() && newName !== file.name) {
+                      try {
+                        // Download file content
+                        const response = await fetch(
+                          storage.getFileView(BUCKET_ID, file.$id)
+                        );
+                        const blob = await response.blob();
+
+                        // Upload new file
+                        await storage.createFile(
+                          BUCKET_ID,
+                          ID.unique(),
+                          new File([blob], newName.trim(), { type: blob.type })
+                        );
+
+                        // Delete old file
+                        await storage.deleteFile(BUCKET_ID, file.$id);
+
+                        // Refresh files
+                        await fetchFiles();
+                      } catch (err) {
+                        console.error("Rename failed:", err);
+                        alert("Failed to rename file.");
+                      }
                     }
                     setOpenMenuId(null);
                   }}
